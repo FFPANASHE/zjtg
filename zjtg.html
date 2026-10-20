@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>酒馆骰子 · 天国拯救赌局</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='6' width='52' height='52' rx='12' fill='%23f1e8d5' stroke='%23c9a24b' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='5' fill='%232a2118'/%3E%3Ccircle cx='44' cy='20' r='5' fill='%232a2118'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%232a2118'/%3E%3Ccircle cx='20' cy='44' r='5' fill='%232a2118'/%3E%3Ccircle cx='44' cy='44' r='5' fill='%232a2118'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=MedievalSharp&family=Noto+Serif+SC:wght@400;600;700;900&display=swap">
+<style>
+/* ============================================================
+   酒馆骰子 · 全局基调：深夜酒馆木桌 + 绿绒布 + 黄铜与骨白
+============================================================ */
+:root{
+  --wood-darkest:#120b05;
+  --wood-dark:#221507;
+  --wood:#3a2612;
+  --wood-light:#553a1f;
+  --felt:#1d4031;
+  --felt-2:#173327;
+  --felt-dark:#0f241a;
+  --brass:#c9a24b;
+  --brass-light:#e8ca7d;
+  --brass-dim:#8a6f34;
+  --bone:#f2ead7;
+  --bone-shade:#d8cbb0;
+  --ink:#271f15;
+  --text:#ecdfc2;
+  --muted:#b49f7a;
+  --danger:#c7553a;
+  --danger-2:#8f3522;
+  --win:#8bbf72;
+  --serif:"Noto Serif SC","Songti SC","STSong",serif;
+  --gothic:"MedievalSharp","Noto Serif SC",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:var(--serif);
+  color:var(--text);
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #4a3016 0%, #2b1b0c 45%, #140c05 100%);
+  background-attachment:fixed;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* 木纹肌理层 */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    repeating-linear-gradient(92deg,
+      rgba(0,0,0,.10) 0 2px, transparent 2px 7px,
+      rgba(255,220,160,.025) 7px 9px, transparent 9px 19px),
+    repeating-linear-gradient(88deg,
+      rgba(0,0,0,.06) 0 3px, transparent 3px 13px);
+  mix-blend-mode:multiply;
+}
+button{font-family:var(--serif);}
+::selection{background:var(--brass);color:var(--ink);}
+
+/* ============================================================
+   通用：遮罩、弹窗
+============================================================ */
+.overlay{
+  position:fixed;inset:0;z-index:50;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  background:radial-gradient(900px 600px at 50% 30%, rgba(60,38,16,.55), rgba(10,6,2,.92));
+  backdrop-filter:blur(3px);
+  animation:fadeIn .35s ease;
+}
+.overlay.hidden{display:none;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+.panel{
+  width:min(680px,100%);
+  max-height:92vh;overflow-y:auto;
+  background:
+    linear-gradient(180deg, #3d2812 0%, #2c1b0b 100%);
+  border:2px solid var(--brass-dim);
+  border-radius:14px;
+  box-shadow:0 24px 70px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,225,170,.18);
+  padding:20px 34px 20px;
+  position:relative;
+}
+.panel::before{
+  content:"";position:absolute;inset:7px;border:1px solid rgba(201,162,75,.35);
+  border-radius:9px;pointer-events:none;
+}
+.panel h1{
+  font-family:var(--gothic);
+  font-size:clamp(30px,6vw,46px);
+  text-align:center;
+  color:var(--brass-light);
+  letter-spacing:.06em;
+  text-shadow:0 2px 0 #000, 0 0 26px rgba(232,202,125,.25);
+  margin-bottom:2px;
+}
+.panel .sub{
+  text-align:center;color:var(--muted);font-size:14px;margin-bottom:12px;
+  letter-spacing:.12em;
+}
+.panel h2{
+  font-size:17px;color:var(--brass-light);margin:15px 0 8px;
+  display:flex;align-items:center;gap:10px;
+}
+.panel h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--brass-dim),transparent);}
+
+/* 目标分数选择 */
+.target-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+.target-opt{
+  flex:1;min-width:130px;max-width:210px;
+  padding:12px 10px;border-radius:10px;cursor:pointer;
+  border:2px solid var(--brass-dim);
+  background:linear-gradient(180deg,#241708,#1a1005);
+  color:var(--text);text-align:center;
+  transition:transform .15s,border-color .15s,box-shadow .15s;
+}
+.target-opt:hover{transform:translateY(-2px);border-color:var(--brass);}
+.target-opt.active{
+  border-color:var(--brass-light);
+  box-shadow:0 0 0 1px var(--brass-light), 0 0 22px rgba(232,202,125,.25);
+  background:linear-gradient(180deg,#4a3214,#2c1d0a);
+}
+.target-opt .num{font-family:var(--gothic);font-size:34px;color:var(--brass-light);display:block;line-height:1.1;}
+.target-opt .lab{font-size:13px;color:var(--muted);margin-top:4px;display:block;}
+
+/* 规则表 */
+.rules-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;
+  font-size:13.5px;
+}
+.rule-item{
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  padding:3.5px 8px;border-bottom:1px dashed rgba(201,162,75,.25);
+}
+.rule-item .combo{color:var(--text);}
+.rule-item .pts{color:var(--brass-light);font-family:var(--gothic);font-size:15px;white-space:nowrap;}
+.rule-note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:6px;}
+.rule-note b{color:var(--brass-light);font-weight:600;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:none;cursor:pointer;
+  font-family:var(--gothic);
+  letter-spacing:.08em;
+  border-radius:10px;
+  padding:14px 26px;font-size:19px;
+  transition:transform .12s, filter .12s, box-shadow .12s;
+  user-select:none;
+}
+.btn:active{transform:translateY(2px);}
+.btn-primary{
+  color:var(--ink);
+  background:linear-gradient(180deg,var(--brass-light) 0%,var(--brass) 55%,#a8832f 100%);
+  box-shadow:0 5px 0 #6d5520, 0 10px 22px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5);
+  border:1px solid #f0d98f;
+}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-primary:active{box-shadow:0 2px 0 #6d5520, 0 5px 12px rgba(0,0,0,.5);}
+.btn-ghost{
+  color:var(--text);
+  background:linear-gradient(180deg,#3a2612,#271808);
+  border:1px solid var(--brass-dim);
+  box-shadow:0 3px 0 #160d04;
+  font-size:16px;padding:10px 18px;
+}
+.btn-ghost:hover{border-color:var(--brass);color:var(--brass-light);}
+.btn-danger{
+  color:#fff;
+  background:linear-gradient(180deg,#d36347,var(--danger-2));
+  box-shadow:0 5px 0 #5e2215, 0 10px 22px rgba(0,0,0,.5);
+  border:1px solid #e08a70;
+}
+.btn[disabled]{
+  opacity:.4;cursor:not-allowed;filter:grayscale(.5);
+  transform:none !important;box-shadow:none !important;
+}
+.btn-big{width:100%;margin-top:18px;font-size:23px;padding:15px;}
+.center{text-align:center;}
+
+/* ============================================================
+   游戏主界面
+============================================================ */
+.game{
+  position:relative;z-index:1;
+  width:min(980px,100%);
+  margin:0 auto;
+  padding:14px 14px 40px;
+  display:flex;flex-direction:column;gap:12px;
+}
+/* 顶栏：比分 */
+.scoreboard{
+  display:grid;grid-template-columns:1fr auto 1fr;gap:10px;
+  align-items:stretch;
+}
+.side-card{
+  background:linear-gradient(180deg,#33200e,#231505);
+  border:1px solid var(--brass-dim);
+  border-radius:12px;
+  padding:10px 16px;
+  position:relative;
+  overflow:hidden;
+}
+.side-card.ai{text-align:right;}
+.side-card .name{
+  font-size:14px;color:var(--muted);letter-spacing:.15em;
+  display:flex;align-items:center;gap:8px;
+}
+.side-card.ai .name{justify-content:flex-end;}
+.side-card.active{
+  border-color:var(--brass-light);
+  box-shadow:0 0 20px rgba(232,202,125,.25);
+}
+.side-card.active .name{color:var(--brass-light);}
+.side-card .score{
+  font-family:var(--gothic);font-size:34px;color:var(--brass-light);
+  line-height:1.15;
+}
+.side-card .turn-tag{
+  position:absolute;top:0;left:0;
+  font-size:11px;letter-spacing:.2em;
+  background:var(--brass);color:var(--ink);
+  padding:2px 10px;border-radius:0 0 8px 0;
+  display:none;
+}
+.side-card.ai .turn-tag{left:auto;right:0;border-radius:0 0 0 8px;}
+.side-card.active .turn-tag{display:block;}
+.vs{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 6px;min-width:86px;
+}
+.vs .target-num{font-family:var(--gothic);font-size:26px;color:var(--text);}
+.vs .target-lab{font-size:11px;color:var(--muted);letter-spacing:.2em;}
+.vs .swords{
+  width:10px;height:10px;background:var(--brass);
+  transform:rotate(45deg);margin:4px 0;
+  box-shadow:0 0 10px rgba(232,202,125,.6);
+}
+/* 进度条 */
+.progress{
+  height:7px;border-radius:4px;background:#130b04;margin-top:6px;
+  border:1px solid rgba(201,162,75,.3);overflow:hidden;
+}
+.progress > i{
+  display:block;height:100%;width:0%;
+  background:linear-gradient(90deg,var(--brass-dim),var(--brass-light));
+  border-radius:4px;transition:width .5s cubic-bezier(.2,.8,.2,1);
+}
+.side-card.ai .progress > i{margin-left:auto;}
+
+/* 赌桌 */
+.table{
+  position:relative;
+  border-radius:18px;
+  padding:18px 18px 22px;
+  background:
+    radial-gradient(120% 130% at 50% 0%, var(--felt) 0%, var(--felt-2) 55%, var(--felt-dark) 100%);
+  border:10px solid #2e1c0c;
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.6),
+    inset 0 2px 10px rgba(255,255,255,.06),
+    inset 0 -8px 30px rgba(0,0,0,.45);
+  outline:2px solid rgba(201,162,75,.35);
+  outline-offset:4px;
+}
+/* 绒布光晕 */
+.table::before{
+  content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;
+  background:radial-gradient(60% 50% at 50% 42%, rgba(255,230,170,.10), transparent 70%);
+}
+.table-zone{position:relative;min-height:96px;}
+.zone-label{
+  font-size:12px;letter-spacing:.25em;color:rgba(236,223,194,.55);
+  display:flex;align-items:center;gap:10px;margin-bottom:8px;
+}
+.zone-label::after{content:"";flex:1;height:1px;background:rgba(236,223,194,.14);}
+.zone-label::before{content:"";flex:1;height:1px;background:rgba(236,223,194,.14);order:2;}
+
+/* 骰子 */
+.dice-row{
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:center;
+  min-height:78px;align-items:center;
+}
+.die{
+  width:62px;height:62px;border-radius:13px;
+  background:
+    radial-gradient(120% 120% at 30% 20%, #fbf5e6, var(--bone) 55%, var(--bone-shade) 100%);
+  box-shadow:
+    0 5px 10px rgba(0,0,0,.5),
+    inset 0 1px 2px rgba(255,255,255,.9),
+    inset 0 -3px 6px rgba(120,95,50,.25);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  padding:9px;
+  position:relative;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.die .pip{
+  border-radius:50%;
+  align-self:center;justify-self:center;
+  width:11px;height:11px;
+  background:radial-gradient(circle at 35% 30%, #4a3d2b, var(--ink));
+  visibility:hidden;
+}
+.die .pip.on{visibility:visible;}
+.die.placeholder{
+  background:transparent;
+  border:2px dashed rgba(236,223,194,.25);
+  box-shadow:none;
+}
+.die.selectable{cursor:pointer;}
+.die.selectable:hover{transform:translateY(-5px);}
+.die.selected{
+  transform:translateY(-9px);
+  box-shadow:
+    0 0 0 3px var(--brass-light),
+    0 12px 18px rgba(0,0,0,.5),
+    0 0 22px rgba(232,202,125,.55);
+}
+.die.scoring:not(.selected):not(.locked)::after{
+  content:"";position:absolute;inset:-4px;border-radius:15px;
+  border:1.5px dashed rgba(232,202,125,.6);
+  pointer-events:none;
+}
+.die.locked{
+  opacity:.45;filter:saturate(.4);
+  transform:scale(.92);
+}
+.die.rolling{
+  animation:tumble .09s linear infinite;
+}
+@keyframes tumble{
+  0%{transform:rotate(0deg) translateY(0);}
+  25%{transform:rotate(-9deg) translateY(-7px);}
+  50%{transform:rotate(6deg) translateY(2px);}
+  75%{transform:rotate(-5deg) translateY(-4px);}
+  100%{transform:rotate(0deg) translateY(0);}
+}
+.die.farkle{animation:fear .5s ease;}
+@keyframes fear{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-7px) rotate(-4deg);}
+  40%{transform:translateX(7px) rotate(4deg);}
+  60%{transform:translateX(-5px) rotate(-2deg);}
+  80%{transform:translateX(5px) rotate(2deg);}
+}
+.die.enter{animation:dieIn .35s cubic-bezier(.2,.9,.3,1.3);}
+@keyframes dieIn{
+  from{transform:scale(.3) translateY(-30px);opacity:0;}
+  to{transform:scale(1) translateY(0);opacity:1;}
+}
+
+/* 中央状态横幅 */
+.banner{
+  text-align:center;min-height:46px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:var(--text);
+  letter-spacing:.06em;
+  padding:4px 8px;
+}
+.banner .big{
+  font-family:var(--gothic);font-size:26px;
+  color:var(--brass-light);
+  text-shadow:0 0 18px rgba(232,202,125,.4);
+  animation:popIn .4s ease;
+}
+.banner .big.danger{color:#e8836b;text-shadow:0 0 18px rgba(199,85,58,.5);}
+.banner .big.win{color:var(--win);text-shadow:0 0 18px rgba(139,191,114,.5);}
+@keyframes popIn{
+  0%{transform:scale(.4);opacity:0;}
+  70%{transform:scale(1.12);}
+  100%{transform:scale(1);opacity:1;}
+}
+.banner .combo-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.chip{
+  font-size:13px;padding:3px 11px;border-radius:20px;
+  background:rgba(201,162,75,.18);border:1px solid var(--brass-dim);
+  color:var(--brass-light);
+}
+.chip.danger{background:rgba(199,85,58,.18);border-color:var(--danger);color:#e89b87;}
+
+/* 操作台 */
+.console{
+  display:grid;grid-template-columns:150px 1fr;gap:14px;
+  background:linear-gradient(180deg,#33200e,#241606);
+  border:1px solid var(--brass-dim);
+  border-radius:14px;padding:14px 16px;
+  align-items:stretch;
+}
+.turn-total{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-right:1px solid rgba(201,162,75,.25);
+  padding-right:14px;
+}
+.turn-total .lab{font-size:12px;color:var(--muted);letter-spacing:.2em;}
+.turn-total .val{
+  font-family:var(--gothic);font-size:44px;color:var(--brass-light);
+  line-height:1.1;
+  transition:transform .15s;
+}
+.turn-total .val.bump{animation:bump .3s ease;}
+@keyframes bump{
+  0%{transform:scale(1);}
+  40%{transform:scale(1.25);color:#fff;}
+  100%{transform:scale(1);}
+}
+.turn-total .held-info{font-size:12px;color:var(--muted);margin-top:2px;}
+.actions{display:flex;flex-direction:column;gap:9px;justify-content:center;}
+.action-row{display:flex;gap:10px;flex-wrap:wrap;}
+.action-row .btn{flex:1;min-width:150px;}
+.hint{font-size:13px;color:var(--muted);min-height:20px;text-align:center;}
+.hint b{color:var(--brass-light);font-weight:600;}
+.hint .warn{color:#e89b87;}
+
+/* 日志 */
+.log-wrap{
+  background:linear-gradient(180deg,#241606,#1b1004);
+  border:1px solid rgba(201,162,75,.3);
+  border-radius:12px;
+  padding:10px 14px;
+  max-height:150px;overflow-y:auto;
+  font-size:13.5px;line-height:1.7;
+}
+.log-wrap .log-title{
+  font-size:12px;letter-spacing:.25em;color:var(--muted);
+  position:sticky;top:0;
+}
+.log-line{color:var(--muted);}
+.log-line .who{color:var(--brass-light);font-weight:600;}
+.log-line .who.p{color:#a8cf8f;}
+.log-line.good{color:var(--text);}
+.log-line.bad{color:#e89b87;}
+.log-line.sys{color:var(--muted);font-style:italic;}
+.log-wrap::-webkit-scrollbar{width:8px;}
+.log-wrap::-webkit-scrollbar-thumb{background:var(--brass-dim);border-radius:4px;}
+
+/* 顶栏小工具 */
+.toolbar{
+  position:fixed;top:12px;right:12px;z-index:20;
+  display:flex;gap:8px;
+}
+.icon-btn{
+  width:42px;height:42px;border-radius:10px;
+  border:1px solid var(--brass-dim);
+  background:linear-gradient(180deg,#3a2612,#271808);
+  color:var(--brass-light);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{border-color:var(--brass);}
+
+/* 结算 */
+.result-ico{font-size:58px;text-align:center;margin:6px 0 2px;}
+.result-score{
+  display:flex;justify-content:center;gap:34px;margin:18px 0 6px;
+}
+.result-score .rs{text-align:center;}
+.result-score .rs .n{font-family:var(--gothic);font-size:40px;color:var(--brass-light);}
+.result-score .rs .l{font-size:13px;color:var(--muted);letter-spacing:.15em;}
+
+/* 响应式 */
+@media (max-width:640px){
+  .game{padding:10px 8px 30px;}
+  .table{padding:12px 10px 16px;border-width:7px;}
+  .die{width:48px;height:48px;border-radius:10px;padding:7px;}
+  .die .pip{width:9px;height:9px;}
+  .dice-row{gap:8px;min-height:62px;}
+  .console{grid-template-columns:1fr;}
+  .turn-total{border-right:none;border-bottom:1px solid rgba(201,162,75,.25);padding:0 0 10px;flex-direction:row;gap:14px;}
+  .panel{padding:24px 20px 22px;}
+  .rules-grid{grid-template-columns:1fr;}
+  .side-card .score{font-size:26px;}
+  .vs{min-width:64px;}
+  .vs .target-num{font-size:20px;}
+  .action-row .btn{min-width:130px;font-size:16px;padding:12px 14px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .die.rolling{animation:none;}
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 视图：开始遮罩 ===== -->
+<div class="overlay" id="startOverlay">
+  <div class="panel">
+    <h1>酒馆骰子</h1>
+    <div class="sub">KINGDOM COME · FARKLE</div>
+
+    <p class="rule-note center" style="text-align:center">
+      酒馆角落的赌徒向你发起了挑战。掷下六颗骨骰，凑出组合、攒够分数——
+      但要小心，贪心往往让你<b>血本无归</b>。
+    </p>
+
+    <h2>选择目标分数</h2>
+    <div class="target-row">
+      <div class="target-opt" data-target="1500">
+        <span class="num">1500</span>
+        <span class="lab">快局 · 两三回合</span>
+      </div>
+      <div class="target-opt active" data-target="4000">
+        <span class="num">4000</span>
+        <span class="lab">经典赌局 · 天国拯救</span>
+      </div>
+    </div>
+
+    <h2>计分表</h2>
+    <div class="rules-grid" id="rulesGrid"></div>
+
+    <h2>玩法</h2>
+    <p class="rule-note">
+      每回合掷出 6 颗骰子，点选带虚框的得分骰子后，可<b>「继续投掷」</b>剩余骰子博更多分，
+      或<b>「存入积分」</b>落袋为安。若一次掷骰凑不出任何得分组合，即为<b>炸胡</b>，本回合分数全部清零。
+      6 颗骰子全部计分时会重新补满 6 颗，手气不断就能一直赢下去。
+    </p>
+
+    <button class="btn btn-primary btn-big" id="startBtn">坐上赌桌</button>
+  </div>
+</div>
+
+<!-- ===== 视图：游戏主界面 ===== -->
+<div class="toolbar">
+  <button class="icon-btn" id="muteBtn" title="声音开关" aria-label="声音开关">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path id="muteIconWave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path id="muteIconWave2" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+  </button>
+  <button class="icon-btn" id="rulesBtn" title="计分规则" aria-label="计分规则">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.34c-.84.35-1.4.9-1.4 1.66V14"></path><circle cx="11.6" cy="17" r=".6" fill="currentColor"></circle></svg>
+  </button>
+</div>
+
+<div class="game" id="game" style="display:none">
+  <!-- 比分栏 -->
+  <div class="scoreboard">
+    <div class="side-card ai" id="aiCard">
+      <span class="turn-tag">行牌中</span>
+      <div class="name">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>
+        独眼赌徒
+      </div>
+      <div class="score" id="aiScore">0</div>
+      <div class="progress"><i id="aiBar"></i></div>
+    </div>
+    <div class="vs">
+      <span class="target-num" id="targetNum">4000</span>
+      <span class="swords" aria-hidden="true"></span>
+      <span class="target-lab">目标分</span>
+    </div>
+    <div class="side-card active" id="playerCard">
+      <span class="turn-tag">行牌中</span>
+      <div class="name">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>
+        你
+      </div>
+      <div class="score" id="playerScore">0</div>
+      <div class="progress"><i id="playerBar"></i></div>
+    </div>
+  </div>
+
+  <!-- 赌桌 -->
+  <div class="table">
+    <!-- AI 骰子区 -->
+    <div class="table-zone">
+      <div class="zone-label">独眼赌徒</div>
+      <div class="dice-row" id="aiDice"></div>
+    </div>
+
+    <!-- 状态横幅 -->
+    <div class="banner" id="banner"></div>
+
+    <!-- 玩家骰子区 -->
+    <div class="table-zone">
+      <div class="dice-row" id="playerDice"></div>
+      <div class="zone-label" style="margin-top:10px">你</div>
+    </div>
+  </div>
+
+  <!-- 操作台 -->
+  <div class="console">
+    <div class="turn-total">
+      <div>
+        <div class="lab">本回合</div>
+        <div class="val" id="turnTotal">0</div>
+      </div>
+      <div class="held-info" id="heldInfo">剩余骰子 6</div>
+    </div>
+    <div class="actions">
+      <div class="action-row">
+        <button class="btn btn-primary" id="rollBtn">投掷骰子</button>
+        <button class="btn btn-danger" id="bankBtn" disabled>存入积分</button>
+      </div>
+      <div class="hint" id="hint">掷出骰子，开始你的回合。</div>
+    </div>
+  </div>
+
+  <!-- 战报 -->
+  <div class="log-wrap" id="logWrap">
+    <div class="log-title">酒 馆 战 报</div>
+    <div id="logList"></div>
+  </div>
+</div>
+
+<!-- ===== 视图：结算遮罩 ===== -->
+<div class="overlay hidden" id="resultOverlay">
+  <div class="panel" style="width:min(480px,100%);text-align:center">
+    <h1 id="resultTitle">胜利</h1>
+    <div class="result-ico" id="resultIco"></div>
+    <div class="result-score">
+      <div class="rs"><div class="n" id="resultPlayer">0</div><div class="l">你</div></div>
+      <div class="rs"><div class="n" id="resultAi">0</div><div class="l">独眼赌徒</div></div>
+    </div>
+    <p class="rule-note" id="resultText" style="text-align:center"></p>
+    <button class="btn btn-primary btn-big" id="againBtn">再来一局</button>
+    <button class="btn btn-ghost" id="backBtn" style="width:100%;margin-top:10px">返回开局</button>
+  </div>
+</div>
+
+<!-- ===== 视图：规则弹窗 ===== -->
+<div class="overlay hidden" id="rulesOverlay">
+  <div class="panel">
+    <h1 style="font-size:32px">计分规则</h1>
+    <div class="rules-grid" id="rulesGrid2" style="margin-top:14px"></div>
+    <h2>行牌规则</h2>
+    <p class="rule-note">
+      1. 每次掷骰后必须至少锁定一个得分组合，否则视为<b>炸胡</b>，本回合分数清零。<br>
+      2. 锁定得分骰子后，可用剩余骰子继续投掷；也可以随时存入积分结束回合。<br>
+      3. 若 6 颗骰子全部用于计分，补满 6 颗继续，回合不中断。<br>
+      4. 双方轮流行牌，率先达到目标分者获胜。
+    </p>
+    <button class="btn btn-primary btn-big" id="rulesCloseBtn">知道了</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   酒馆骰子 —— 天国拯救规则的 Farkle 复现
+============================================================ */
+
+/* ---------- 规则表（开始界面 & 弹窗共用） ---------- */
+const RULES = [
+  ['单颗 1 点', '100'],
+  ['单颗 5 点', '50'],
+  ['三个 1', '1000'],
+  ['三个 2 ～ 6（点数 ×100）', '200 ～ 600'],
+  ['四个相同', '三条 ×2'],
+  ['五个相同', '三条 ×4'],
+  ['六个相同', '三条 ×8'],
+  ['小顺子 1-2-3-4-5', '500'],
+  ['大顺子 2-3-4-5-6', '750'],
+  ['全顺子 1-2-3-4-5-6', '1500'],
+];
+function renderRules(){
+  const html = RULES.map(r =>
+    `<div class="rule-item"><span class="combo">${r[0]}</span><span class="pts">${r[1]}</span></div>`
+  ).join('');
+  document.getElementById('rulesGrid').innerHTML = html;
+  document.getElementById('rulesGrid2').innerHTML = html;
+}
+renderRules();
+
+/* ---------- 骰子点数布局（3×3 九个点位） ---------- */
+const PIP_MAP = {
+  1:[5],
+  2:[1,9],
+  3:[1,5,9],
+  4:[1,3,7,9],
+  5:[1,3,5,7,9],
+  6:[1,3,4,6,7,9]
+};
+const CN = ['','一','二','三','四','五','六'];
+
+/* ---------- 计分引擎：记忆化 DP，求骰子集合的最优分组 ----------
+   输入 counts[1..6]，输出 {score, used, groups:[{label,score,vals}]}
+   允许不用完骰子（used 为实际计分骰子数）。 */
+const solveMemo = new Map();
+function solveCounts(counts){
+  const key = counts.slice(1).join('.');
+  if(solveMemo.has(key)) return solveMemo.get(key);
+  let best = {score:0, used:0, groups:[]};
+
+  const consider = (need, label, score, vals) => {
+    for(const [n,c] of need){ if(counts[n] < c) return; }
+    const next = counts.slice();
+    for(const [n,c] of need) next[n] -= c;
+    const sub = solveCounts(next);
+    const cand = {
+      score: score + sub.score,
+      used: vals.length + sub.used,
+      groups: [{label, score, vals:vals.slice()}, ...sub.groups]
+    };
+    // 分数最高；同分时优先用骰子更多的解（虚框提示更友好）
+    if(cand.score > best.score || (cand.score === best.score && cand.used > best.used)){
+      best = cand;
+    }
+  };
+
+  // 顺子类（先枚举，DP 最终仍取最优）
+  if([1,2,3,4,5,6].every(n => counts[n] >= 1))
+    consider([[1,1],[2,1],[3,1],[4,1],[5,1],[6,1]], '全顺子', 1500, [1,2,3,4,5,6]);
+  if([1,2,3,4,5].every(n => counts[n] >= 1))
+    consider([[1,1],[2,1],[3,1],[4,1],[5,1]], '小顺子', 500, [1,2,3,4,5]);
+  if([2,3,4,5,6].every(n => counts[n] >= 1))
+    consider([[2,1],[3,1],[4,1],[5,1],[6,1]], '大顺子', 750, [2,3,4,5,6]);
+
+  // 三个及以上相同：四条 ×2、五条 ×4、六条 ×8
+  for(let n=1; n<=6; n++){
+    for(let k=3; k<=counts[n]; k++){
+      const base = (n===1) ? 1000 : n*100;
+      const mult = [1,2,4,8][k-3];
+      const label = CN[k] + '个 ' + n;
+      consider([[n,k]], label, base*mult, new Array(k).fill(n));
+    }
+  }
+  // 散点
+  if(counts[1] >= 1) consider([[1,1]], '一点', 100, [1]);
+  if(counts[5] >= 1) consider([[5,1]], '五点', 50, [5]);
+
+  solveMemo.set(key, best);
+  return best;
+}
+function toCounts(values){
+  const c = [0,0,0,0,0,0,0];
+  values.forEach(v => c[v]++);
+  return c;
+}
+function evaluate(values){ return solveCounts(toCounts(values)); }
+/* 把最优分组映射到具体骰子下标（同点数按顺序分配） */
+function mapSolution(slotLike, sol){
+  const pool = slotLike.map((s,i) => ({i, v:s.v}));
+  const used = new Set();
+  for(const g of sol.groups){
+    for(const v of g.vals){
+      const j = pool.findIndex(p => p && p.v === v);
+      if(j >= 0){ used.add(pool[j].i); pool[j] = null; }
+    }
+  }
+  return used;
+}
+function groupsLabel(sol){
+  return sol.groups.map(g => `${g.label}（${g.score}）`).join('、');
+}
+
+/* ---------- 合成音效（Web Audio，无外部资源） ---------- */
+const Sound = {
+  ctx:null, muted:false,
+  ensure(){
+    if(!this.ctx){
+      try{ this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+    }
+    if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  tone(freq, dur, type, vol, delay){
+    if(!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + (delay||0);
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(this.ctx.destination);
+    o.start(t); o.stop(t+dur+0.05);
+  },
+  click(){ this.tone(660, .07, 'triangle', .18); },
+  error(){ this.tone(150, .16, 'sawtooth', .12); },
+  lock(){ this.tone(1240, .12, 'triangle', .16); this.tone(1860, .16, 'sine', .08, .05); },
+  bank(){ this.tone(1568, .14, 'triangle', .15); this.tone(2093, .22, 'triangle', .14, .09); },
+  farkle(){
+    this.tone(220, .35, 'sawtooth', .16);
+    this.tone(140, .45, 'sawtooth', .14, .08);
+  },
+  win(){
+    [523,659,784,1047,1319].forEach((f,i)=>this.tone(f,.25,'triangle',.16,i*.13));
+  },
+  lose(){
+    [330,262,196].forEach((f,i)=>this.tone(f,.35,'sawtooth',.12,i*.18));
+  },
+  roll(){
+    if(!this.ctx || this.muted) return;
+    for(let i=0;i<9;i++){
+      const t = this.ctx.currentTime + Math.random()*0.45;
+      const len = Math.floor(this.ctx.sampleRate * 0.03);
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let j=0;j<len;j++) d[j] = (Math.random()*2-1) * (1-j/len);
+      const src = this.ctx.createBufferSource(); src.buffer = buf;
+      const f = this.ctx.createBiquadFilter();
+      f.type='bandpass'; f.frequency.value = 1600 + Math.random()*2200;
+      const g = this.ctx.createGain(); g.gain.value = .25;
+      src.connect(f).connect(g).connect(this.ctx.destination);
+      src.start(t);
+    }
+  }
+};
+
+/* ---------- 游戏状态 ---------- */
+const G = {
+  target: 4000,
+  scores: {player:0, ai:0},
+  turn: 'player',
+  phase: 'idle',          // idle | rolling | picking | over
+  busy: false,
+  turnTotal: 0,
+  selected: new Set(),
+  scorables: new Set(),
+  farkleFlash: false,
+  slots: {player:[], ai:[]}
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand6 = () => 1 + Math.floor(Math.random()*6);
+const idleSlots = () => Array.from({length:6}, () => ({v:0, s:'idle'}));
+const heldCount = side => G.slots[side].filter(x => x.s==='held').length;
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const els = {
+  playerDice:$('playerDice'), aiDice:$('aiDice'), banner:$('banner'),
+  rollBtn:$('rollBtn'), bankBtn:$('bankBtn'), hint:$('hint'),
+  turnTotal:$('turnTotal'), heldInfo:$('heldInfo'),
+  playerScore:$('playerScore'), aiScore:$('aiScore'),
+  playerBar:$('playerBar'), aiBar:$('aiBar'),
+  playerCard:$('playerCard'), aiCard:$('aiCard'),
+  logList:$('logList'), targetNum:$('targetNum')
+};
+
+/* ---------- 日志 ---------- */
+function addLog(text, cls, who){
+  const line = document.createElement('div');
+  line.className = 'log-line ' + (cls||'');
+  const w = who==='player' ? '<span class="who p">你</span> '
+            : who==='ai' ? '<span class="who">赌徒</span> ' : '';
+  line.innerHTML = w + text;
+  els.logList.appendChild(line);
+  while(els.logList.children.length > 40) els.logList.removeChild(els.logList.firstChild);
+  const wrap = $('logWrap'); wrap.scrollTop = wrap.scrollHeight;
+}
+
+/* ---------- 渲染：骰子 ---------- */
+function renderSide(side){
+  const row = side==='player' ? els.playerDice : els.aiDice;
+  const slots = G.slots[side];
+  row.innerHTML = '';
+  slots.forEach((d, idx) => {
+    const die = document.createElement('div');
+    die.className = 'die';
+    if(d.s === 'idle'){
+      die.classList.add('placeholder');
+    }else{
+      if(d.s === 'held') die.classList.add('locked');
+      if(d.s === 'rolling') die.classList.add('rolling');
+      if(d.s === 'on'){
+        if(G.selected.has(idx)) die.classList.add('selected');
+        else if(G.scorables.has(idx)) die.classList.add('scoring');
+        if(side === 'player' && G.turn==='player' && G.phase==='picking') die.classList.add('selectable');
+      }
+      if(G.farkleFlash && d.s !== 'held') die.classList.add('farkle');
+      for(let p=1; p<=9; p++){
+        const pip = document.createElement('span');
+        pip.className = 'pip' + (PIP_MAP[d.v].includes(p) ? ' on' : '');
+        die.appendChild(pip);
+      }
+    }
+    die.dataset.idx = idx;
+    row.appendChild(die);
+  });
+}
+function renderBoth(){ renderSide('player'); renderSide('ai'); }
+
+/* ---------- 渲染：记分板 ---------- */
+function renderScoreboard(){
+  els.playerScore.textContent = G.scores.player;
+  els.aiScore.textContent = G.scores.ai;
+  els.playerBar.style.width = Math.min(100, G.scores.player/G.target*100) + '%';
+  els.aiBar.style.width = Math.min(100, G.scores.ai/G.target*100) + '%';
+  els.playerCard.classList.toggle('active', G.turn==='player' && G.phase!=='over');
+  els.aiCard.classList.toggle('active', G.turn==='ai' && G.phase!=='over');
+}
+
+/* ---------- 渲染：操作台 ---------- */
+function selectedSolution(){
+  const sel = G.slots.player.filter((d,i) => d.s==='on' && G.selected.has(i));
+  if(!sel.length) return null;
+  const sol = evaluate(sel.map(d => d.v));
+  return sol.used === sel.length ? sol : null;
+}
+function renderConsole(){
+  const n = 6 - heldCount('player');
+  els.heldInfo.textContent = '剩余骰子 ' + n;
+  const prev = parseInt(els.turnTotal.textContent, 10) || 0;
+  els.turnTotal.textContent = G.turnTotal;
+  if(G.turnTotal > prev) {
+    els.turnTotal.classList.remove('bump');
+    void els.turnTotal.offsetWidth;
+    els.turnTotal.classList.add('bump');
+  }
+  const myTurn = G.turn==='player' && !G.busy;
+  const roll = els.rollBtn, bank = els.bankBtn;
+  roll.disabled = true; bank.disabled = true;
+  roll.textContent = '投掷骰子';
+  bank.textContent = '存入积分';
+
+  if(G.turn==='ai'){
+    els.hint.innerHTML = '独眼赌徒正在行牌，静观其变…';
+  }else if(G.phase === 'rolling'){
+    els.hint.innerHTML = '骰子在桌上翻滚…';
+  }else if(G.phase === 'idle'){
+    if(myTurn){
+      roll.disabled = false;
+      roll.textContent = G.turnTotal===0 ? '投掷骰子' : `继续投掷 · 剩 ${n} 颗`;
+      if(G.turnTotal > 0){
+        bank.disabled = false;
+        bank.textContent = `存入积分 · +${G.turnTotal}`;
+      }
+      els.hint.innerHTML = G.turnTotal===0
+        ? '掷出骰子，开始你的回合。'
+        : '可以<b>存入</b>落袋为安，也可以继续掷骰博一把大的。';
+    }
+  }else if(G.phase === 'picking'){
+    const selCount = G.selected.size;
+    const sol = selectedSolution();
+    if(myTurn){
+      if(sol){
+        roll.disabled = false;
+        roll.textContent = `继续投掷 · 剩 ${n-selCount} 颗`;
+        bank.disabled = false;
+        bank.textContent = `存入积分 · +${G.turnTotal + sol.score}`;
+        els.hint.innerHTML = `已选组合：<b>${groupsLabel(sol)}</b>，共 ${sol.score} 分。`;
+      }else{
+        roll.disabled = true; bank.disabled = true;
+        if(selCount===0){
+          els.hint.innerHTML = '点选带虚框的骰子组成得分组合（至少一个）。';
+        }else{
+          els.hint.innerHTML = '<span class="warn">已选骰子还凑不成完整组合，继续点选，或再次点击取消。</span>';
+        }
+      }
+    }
+  }
+}
+function setBanner(html){ els.banner.innerHTML = html; }
+function renderAll(){ renderBoth(); renderScoreboard(); renderConsole(); }
+
+/* ---------- 掷骰动画 ---------- */
+async function rollAnim(side, finalVals){
+  const slots = G.slots[side];
+  const targets = slots.filter(d => d.s !== 'held');
+  targets.forEach(d => { d.s = 'rolling'; d.v = rand6(); });
+  Sound.roll();
+  renderSide(side);
+  await new Promise(resolve => {
+    const iv = setInterval(() => {
+      targets.forEach(d => d.v = rand6());
+      renderSide(side);
+    }, 75);
+    setTimeout(() => {
+      clearInterval(iv);
+      targets.forEach((d,i) => { d.v = finalVals[i]; });
+      resolve();
+    }, 620);
+  });
+}
+
+/* ---------- 一次掷骰（玩家与 AI 共用），返回 'farkle' | 'picked' ---------- */
+async function doRoll(side){
+  G.phase = 'rolling';
+  G.selected.clear();
+  G.scorables = new Set();
+  G.farkleFlash = false;
+  renderConsole();
+  const slots = G.slots[side];
+  const targets = slots.filter(d => d.s !== 'held');
+  const finalVals = targets.map(() => rand6());
+  await rollAnim(side, finalVals);
+  targets.forEach(d => d.s = 'on');
+
+  const onDice = slots.filter(d => d.s === 'on');
+  const sol = evaluate(onDice.map(d => d.v));
+
+  if(sol.score === 0){
+    // 炸胡：本回合分数清零
+    G.farkleFlash = true;
+    G.phase = 'rolling';
+    renderSide(side);
+    Sound.farkle();
+    const who = side==='player' ? '你' : '独眼赌徒';
+    setBanner(`<span class="big danger">炸胡！</span>`);
+    addLog(`掷出的骰子凑不出任何组合，本回合 ${G.turnTotal} 分全部作废。`, 'bad', side);
+    if(side==='player') els.hint.innerHTML = '<span class="warn">炸胡！本回合一无所获。</span>';
+    G.turnTotal = 0;
+    renderConsole();
+    await sleep(1600);
+    G.farkleFlash = false;
+    nextTurn(side);
+    return 'farkle';
+  }
+
+  // 标记可参与计分的骰子（最优解用到的集合）
+  G.scorables = mapSolution(onDice, sol);
+  // mapSolution 基于 onDice 的局部下标，换算成 slots 全局下标
+  const globalScorables = new Set();
+  onDice.forEach((d, i) => {
+    if(G.scorables.has(i)) globalScorables.add(slots.indexOf(d));
+  });
+  G.scorables = globalScorables;
+
+  G.phase = 'picking';
+  setBanner(
+    '<div class="combo-chips">' +
+    sol.groups.map(g => `<span class="chip">${g.label} · ${g.score}</span>`).join('') +
+    '</div>'
+  );
+  renderAll();
+  return 'picked';
+}
+
+/* ---------- 锁定选择 ---------- */
+async function lockSelection(side){
+  const slots = G.slots[side];
+  const sel = slots.filter((d,i) => d.s==='on' && G.selected.has(i));
+  const sol = evaluate(sel.map(d => d.v));
+  sel.forEach(d => d.s = 'held');
+  G.selected.clear();
+  G.scorables = new Set();
+  G.turnTotal += sol.score;
+  Sound.lock();
+  addLog(`锁定 ${groupsLabel(sol)}，本回合累计 ${G.turnTotal} 分。`, 'good', side);
+  renderAll();
+  await sleep(380);
+
+  if(heldCount(side) === 6){
+    // 全收：补满 6 颗
+    setBanner(`<span class="big">全收！补满 6 颗骰子</span>`);
+    Sound.lock();
+    addLog('六颗骰子全部计分，补满骰子，手气正旺！', 'good', side);
+    await sleep(850);
+    G.slots[side] = idleSlots();
+    renderSide(side);
+  }
+  return sol;
+}
+
+/* ---------- 存入积分 ---------- */
+async function bankTurn(side){
+  const gain = G.turnTotal;
+  G.scores[side] += gain;
+  G.turnTotal = 0;
+  Sound.bank();
+  addLog(`存入 ${gain} 分，总分来到 ${G.scores[side]}。`, 'good', side);
+  renderScoreboard();
+  renderConsole();
+  await sleep(500);
+  if(G.scores[side] >= G.target){ endGame(side); return; }
+  nextTurn(side);
+}
+
+/* ---------- 换人 ---------- */
+function nextTurn(endedSide){
+  const next = endedSide === 'player' ? 'ai' : 'player';
+  G.turn = next;
+  G.phase = 'idle';
+  G.busy = false;
+  G.turnTotal = 0;
+  G.selected.clear();
+  G.scorables = new Set();
+  G.farkleFlash = false;
+  G.slots[next] = idleSlots();
+  // 对方的桌子清成虚位等待
+  G.slots[endedSide] = idleSlots();
+  renderAll();
+  if(next === 'ai'){
+    setBanner('轮到 <b>独眼赌徒</b> 行牌…');
+    setTimeout(aiTurn, 700);
+  }else{
+    setBanner('轮到你了');
+    addLog('轮到你掷骰。', 'sys');
+  }
+}
+
+/* ---------- AI 决策：剩余骰子越少越保守，落后则更激进 ---------- */
+function aiDecide(total, remaining, justHot){
+  if(justHot) return true;
+  let stop = 700;
+  if(remaining <= 1) stop = 160;
+  else if(remaining <= 2) stop = 380;
+  else if(remaining <= 3) stop = 560;
+  const gap = G.scores.player - G.scores.ai;
+  if(gap > 800) stop *= 0.6;
+  if(gap < -800) stop = Math.min(stop + 150, 900);
+  if(total >= stop) return false;
+  if(Math.random() < 0.12) return true;   // 赌徒天性，偶尔贪一手
+  return true;
+}
+
+/* ---------- AI 回合 ---------- */
+async function aiTurn(){
+  G.busy = true;
+  G.turn = 'ai';
+  G.turnTotal = 0;
+  G.slots.ai = idleSlots();
+  G.slots.player = idleSlots();
+  renderAll();
+  addLog('独眼赌徒摇了摇骰盅。', 'sys');
+  await sleep(600);
+
+  while(true){
+    const r = await doRoll('ai');
+    if(r === 'farkle') return;   // doRoll 内已完成换人
+
+    const slots = G.slots.ai;
+    const onDice = slots.filter(d => d.s === 'on');
+    const sol = evaluate(onDice.map(d => d.v));
+    await sleep(950);
+
+    // 锁定最优分组
+    const localUsed = mapSolution(onDice, sol);
+    onDice.forEach((d, i) => { if(localUsed.has(i)) d.s = 'held'; });
+    G.scorables = new Set();
+    G.turnTotal += sol.score;
+    Sound.lock();
+    addLog(`锁定 ${groupsLabel(sol)}，本回合累计 ${G.turnTotal} 分。`, 'good', 'ai');
+    setBanner('<div class="combo-chips">' +
+      sol.groups.map(g => `<span class="chip">${g.label} · ${g.score}</span>`).join('') +
+      '</div>');
+    renderAll();
+    await sleep(550);
+
+    let hot = false;
+    if(heldCount('ai') === 6){
+      hot = true;
+      setBanner(`<span class="big">赌徒全收！</span>`);
+      addLog('赌徒六颗全收，补满骰子继续。', 'sys');
+      Sound.lock();
+      await sleep(850);
+      G.slots.ai = idleSlots();
+      renderSide('ai');
+    }
+
+    const remaining = 6 - heldCount('ai');
+
+    // 存入即可获胜
+    if(G.scores.ai + G.turnTotal >= G.target){
+      addLog('赌徒冷笑：“这一局，够了。”', 'sys');
+      await sleep(500);
+      G.busy = false;
+      await bankTurn('ai');
+      return;
+    }
+
+    const go = aiDecide(G.turnTotal, remaining, hot);
+    if(!go){
+      addLog('赌徒见好就收，决定存入积分。', 'sys');
+      await sleep(550);
+      G.busy = false;
+      await bankTurn('ai');
+      return;
+    }
+    addLog(`赌徒贪心未泯，继续掷出 ${remaining} 颗骰子。`, 'sys');
+    G.phase = 'idle';
+    renderConsole();
+    await sleep(700);
+  }
+}
+
+/* ---------- 结算 ---------- */
+const ICON_WIN = '<svg width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#e8ca7d" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4.2 4L12 5l4.8 7L21 8l-2 11H5L3 8z" fill="rgba(232,202,125,.28)"/><path d="M5 19h14"/><circle cx="12" cy="3.4" r="1.2" fill="#e8ca7d" stroke="none"/></svg>';
+const ICON_LOSE = '<svg width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#b49f7a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5" fill="rgba(180,159,122,.15)"/><path d="M9 4l2 5-4 3 4 3-2 5M14 10l.5 3 2.5 1M15 16l-.5 2.5"/></svg>';
+function endGame(winner){
+  G.phase = 'over';
+  G.busy = true;
+  renderAll();
+  const win = winner === 'player';
+  if(win){
+    Sound.win();
+    $('resultTitle').textContent = '你赢了赌局';
+    $('resultIco').innerHTML = ICON_WIN;
+    $('resultText').textContent = '独眼赌徒把钱袋推过桌面，悻悻地裹紧斗篷离开了酒馆。';
+    addLog('你率先达到目标分，赢下赌局！', 'good');
+  }else{
+    Sound.lose();
+    $('resultTitle').textContent = '你输光了钱袋';
+    $('resultIco').innerHTML = ICON_LOSE;
+    $('resultText').textContent = '独眼赌徒吹了声口哨，笑着把你的金币尽数揽走。下回别太贪。';
+    addLog('独眼赌徒率先达到目标分，你输了这一局。', 'bad');
+  }
+  $('resultPlayer').textContent = G.scores.player;
+  $('resultAi').textContent = G.scores.ai;
+  setTimeout(() => $('resultOverlay').classList.remove('hidden'), 900);
+}
+
+/* ---------- 开局 / 重置 ---------- */
+function resetGame(){
+  G.scores = {player:0, ai:0};
+  G.turn = 'player';
+  G.phase = 'idle';
+  G.busy = false;
+  G.turnTotal = 0;
+  G.selected = new Set();
+  G.scorables = new Set();
+  G.farkleFlash = false;
+  G.slots.player = idleSlots();
+  G.slots.ai = idleSlots();
+  els.logList.innerHTML = '';
+  els.targetNum.textContent = G.target;
+  setBanner('酒馆里安静得能听见烛火噼啪。<b>你先手</b>。');
+  addLog(`赌局开始，目标分数 ${G.target}，你先手。`, 'sys');
+  renderAll();
+}
+
+/* ---------- 事件绑定 ---------- */
+// 目标分数选择
+document.querySelectorAll('.target-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.target-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    G.target = parseInt(opt.dataset.target, 10);
+    Sound.ensure(); Sound.click();
+  });
+});
+$('startBtn').addEventListener('click', () => {
+  Sound.ensure();
+  $('startOverlay').classList.add('hidden');
+  $('game').style.display = '';
+  resetGame();
+});
+$('againBtn').addEventListener('click', () => {
+  $('resultOverlay').classList.add('hidden');
+  Sound.ensure();
+  resetGame();
+});
+$('backBtn').addEventListener('click', () => {
+  $('resultOverlay').classList.add('hidden');
+  $('game').style.display = 'none';
+  $('startOverlay').classList.remove('hidden');
+});
+$('rulesBtn').addEventListener('click', () => { Sound.ensure(); Sound.click(); $('rulesOverlay').classList.remove('hidden'); });
+$('rulesCloseBtn').addEventListener('click', () => { Sound.click(); $('rulesOverlay').classList.add('hidden'); });
+$('rulesOverlay').addEventListener('click', e => { if(e.target.id === 'rulesOverlay') $('rulesOverlay').classList.add('hidden'); });
+
+// 静音开关
+const muteSvg = $('muteBtn').querySelector('svg');
+const muteNS = 'http://www.w3.org/2000/svg';
+['4,5,20,21','21,5,4,21'].forEach(pair => {
+  const [x1,y1,x2,y2] = pair.split(',').map(Number);
+  const l = document.createElementNS(muteNS, 'line');
+  l.setAttribute('x1',x1); l.setAttribute('y1',y1); l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+  l.setAttribute('stroke','currentColor'); l.setAttribute('stroke-width','2');
+  l.setAttribute('stroke-linecap','round');
+  l.style.display = 'none';
+  l.dataset.mutex = '1';
+  muteSvg.appendChild(l);
+});
+$('muteBtn').addEventListener('click', () => {
+  Sound.ensure();
+  Sound.muted = !Sound.muted;
+  muteSvg.querySelectorAll('[data-mutex]').forEach(l => l.style.display = Sound.muted ? '' : 'none');
+  muteSvg.querySelectorAll('#muteIconWave,#muteIconWave2').forEach(p => p.style.opacity = Sound.muted ? '.35' : '');
+  if(!Sound.muted) Sound.click();
+});
+
+// 玩家点骰子
+els.playerDice.addEventListener('click', e => {
+  const die = e.target.closest('.die');
+  if(!die || G.turn!=='player' || G.phase!=='picking' || G.busy) return;
+  const idx = parseInt(die.dataset.idx, 10);
+  const d = G.slots.player[idx];
+  if(!d || d.s !== 'on') return;
+  if(G.selected.has(idx)){
+    G.selected.delete(idx);
+    Sound.click();
+  }else if(G.scorables.has(idx)){
+    G.selected.add(idx);
+    Sound.click();
+  }else{
+    Sound.error();
+    die.classList.remove('farkle');
+    void die.offsetWidth;
+    die.classList.add('farkle');
+    els.hint.innerHTML = '<span class="warn">这颗骰子凑不成任何得分组合——散点只有 1 和 5 计分。</span>';
+    return;
+  }
+  renderSide('player');
+  renderConsole();
+});
+
+// 投掷 / 继续投掷
+els.rollBtn.addEventListener('click', async () => {
+  if(G.turn!=='player' || G.busy) return;
+  Sound.ensure();
+  if(G.phase === 'idle'){
+    G.busy = true;
+    renderConsole();
+    await doRoll('player');
+    G.busy = false;
+    renderConsole();
+  }else if(G.phase === 'picking'){
+    const sol = selectedSolution();
+    if(!sol) return;
+    G.busy = true;
+    renderConsole();
+    await lockSelection('player');
+    G.phase = 'idle';
+    renderAll();
+    await doRoll('player');
+    G.busy = false;
+    renderConsole();
+  }
+});
+
+// 存入积分
+els.bankBtn.addEventListener('click', async () => {
+  if(G.turn!=='player' || G.busy) return;
+  if(G.phase === 'picking'){
+    if(!selectedSolution()) return;
+    G.busy = true;
+    renderConsole();
+    await lockSelection('player');
+  }else if(G.phase === 'idle'){
+    if(G.turnTotal <= 0) return;
+  }else return;
+  G.busy = true;
+  await bankTurn('player');
+});
+
+/* 初始渲染空桌，等待开局 */
+G.slots.player = idleSlots();
+G.slots.ai = idleSlots();
+renderBoth();
+
+</script>
+</body>
+</html>
